@@ -22,6 +22,12 @@ class NameNotFound(Exception):
         super(NameNotFound, self).__init__(message, name, list_of_stuff, *args)
 
 
+def dict_filter(it, *keys):
+    """Filter dictionary results."""
+    for d in it:
+        yield dict((k, d[k]) for k in keys)
+
+
 if not MESHIFY_USERNAME or not MESHIFY_PASSWORD:
     print("Simplify the usage by setting the meshify username and password as environment variables MESHIFY_USERNAME and MESHIFY_PASSWORD")
     MESHIFY_USERNAME = input("Meshify Username: ")
@@ -54,6 +60,71 @@ def post_meshify_api(endpoint, data):
     if q_req.status_code != 200:
         print(q_req.status_code)
     return json.loads(q_req.text) if q_req.status_code == 200 else []
+
+
+def decode_channel_parameters(channel):
+    """Decode a channel object's parameters into human-readable format."""
+    channel_types = {
+        1: 'device',
+        5: 'static',
+        6: 'user input',
+        7: 'system'
+    }
+
+    io_options = {
+        0: 'readonly',
+        1: 'readwrite'
+    }
+
+    datatype_options = {
+        1: "float",
+        2: 'string',
+        3: 'integer',
+        4: 'boolean',
+        5: 'datetime',
+        6: 'timespan',
+        7: 'file',
+        8: 'latlng'
+    }
+
+    channel['channelType'] = channel_types[channel['channelType']]
+    channel['io'] = io_options[channel['io']]
+    channel['dataType'] = datatype_options[channel['dataType']]
+    return channel
+
+
+def encode_channel_parameters(channel):
+    """Encode a channel object from human-readable format."""
+    channel_types = {
+        'device': 1,
+        'static': 5,
+        'user input': 6,
+        'system': 7
+    }
+
+    io_options = {
+        'readonly': False,
+        'readwrite': True
+    }
+
+    datatype_options = {
+        "float": 1,
+        'string': 2,
+        'integer': 3,
+        'boolean': 4,
+        'datetime': 5,
+        'timespan': 6,
+        'file': 7,
+        'latlng': 8
+    }
+
+    channel['deviceTypeId'] = int(channel['deviceTypeId'])
+    channel['fromMe'] = channel['fromMe'].lower() == 'true'
+    channel['channelType'] = channel_types[channel['channelType'].lower()]
+    channel['io'] = io_options[channel['io'].lower()]
+    channel['dataType'] = datatype_options[channel['dataType'].lower()]
+    # channel['id'] = 1
+    return channel
 
 
 @click.group()
@@ -93,12 +164,43 @@ def get_channel_csv(device_type_name, output_file):
 
         writer.writeheader()
         for ch in channels:
-            writer.writerow(ch)
+            writer.writerow(decode_channel_parameters(ch))
 
     click.echo("Wrote channels to {}".format(output_file))
 
 
+@click.command()
+@click.argument("device_type_name")
+@click.argument("csv_file")
+def post_channel_csv(device_type_name, csv_file):
+    """Post values from a CSV to Meshify Channel API."""
+    devicetypes = query_meshify_api('devicetypes')
+    this_devicetype = find_by_name(device_type_name, devicetypes)
+
+    with open(csv_file, 'r') as inp_file:
+        reader = csv.DictReader(inp_file)
+        for row in dict_filter(reader, 'name',
+                               'deviceTypeId',
+                               'fromMe',
+                               'io',
+                               'subTitle',
+                               'helpExplanation',
+                               'channelType',
+                               'dataType',
+                               'defaultValue',
+                               'regex',
+                               'regexErrMsg'):
+            # print(row)
+            # print(encode_channel_parameters(row))
+            # click.echo(json.dumps(encode_channel_parameters(row), indent=4))
+            if post_meshify_api('devicetypes/{}/channels'.format(this_devicetype['id']), encode_channel_parameters(row)):
+                click.echo("Successfully added channel {}".format(row['name']))
+            else:
+                click.echo("Unable to add channel {}".format(row['name']))
+
+
 cli.add_command(get_channel_csv)
+cli.add_command(post_channel_csv)
 
 if __name__ == '__main__':
     cli()
