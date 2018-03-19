@@ -9,6 +9,7 @@ import getpass
 MESHIFY_BASE_URL = "https://henrypump.meshify.com/api/v3/"
 MESHIFY_USERNAME = getenv("MESHIFY_USERNAME")
 MESHIFY_PASSWORD = getenv("MESHIFY_PASSWORD")
+MESHIFY_AUTH = None
 
 
 class NameNotFound(Exception):
@@ -28,12 +29,17 @@ def dict_filter(it, *keys):
         yield dict((k, d[k]) for k in keys)
 
 
-if not MESHIFY_USERNAME or not MESHIFY_PASSWORD:
-    print("Simplify the usage by setting the meshify username and password as environment variables MESHIFY_USERNAME and MESHIFY_PASSWORD")
-    MESHIFY_USERNAME = raw_input("Meshify Username: ")
-    MESHIFY_PASSWORD = getpass.getpass("Meshify Password: ")
+def check_auth():
+    """Check the global auth parameters."""
+    global MESHIFY_USERNAME, MESHIFY_PASSWORD, MESHIFY_AUTH
+    if not MESHIFY_USERNAME or not MESHIFY_PASSWORD:
+        print("Simplify the usage by setting the meshify username and password as environment variables MESHIFY_USERNAME and MESHIFY_PASSWORD")
+        MESHIFY_USERNAME = input("Meshify Username: ")
+        MESHIFY_PASSWORD = getpass.getpass("Meshify Password: ")
+        putenv("MESHIFY_USERNAME", MESHIFY_USERNAME)
+        putenv("MESHIFY_PASSWORD", MESHIFY_PASSWORD)
 
-MESHIFY_AUTH = requests.auth.HTTPBasicAuth(MESHIFY_USERNAME, MESHIFY_PASSWORD)
+    MESHIFY_AUTH = requests.auth.HTTPBasicAuth(MESHIFY_USERNAME, MESHIFY_PASSWORD)
 
 
 def find_by_name(name, list_of_stuff):
@@ -46,6 +52,7 @@ def find_by_name(name, list_of_stuff):
 
 def query_meshify_api(endpoint):
     """Make a query to the meshify API."""
+    check_auth()
     if endpoint[0] == "/":
         endpoint = endpoint[1:]
     q_url = MESHIFY_BASE_URL + endpoint
@@ -55,6 +62,7 @@ def query_meshify_api(endpoint):
 
 def post_meshify_api(endpoint, data):
     """Post data to the meshify API."""
+    check_auth()
     q_url = MESHIFY_BASE_URL + endpoint
     q_req = requests.post(q_url, data=json.dumps(data), auth=MESHIFY_AUTH)
     if q_req.status_code != 200:
@@ -199,8 +207,32 @@ def post_channel_csv(device_type_name, csv_file):
                 click.echo("Unable to add channel {}".format(row['name']))
 
 
+@click.command()
+def print_channel_options():
+    """Print channel options for use with the csv files."""
+    channel_types = ['device', 'static', 'user input', 'system']
+    io_options = ['readonly', 'readwrite']
+    datatype_options = ["float", 'string', 'integer', 'boolean', 'datetime', 'timespan', 'file', 'latlng']
+
+    click.echo("\n\nchannelType options")
+    click.echo("===================")
+    for c in channel_types:
+        click.echo(c)
+
+    click.echo("\n\nio options")
+    click.echo("==========")
+    for i in io_options:
+        click.echo(i)
+
+    click.echo("\n\ndataType options")
+    click.echo("================")
+    for d in datatype_options:
+        click.echo(d)
+
+
 cli.add_command(get_channel_csv)
 cli.add_command(post_channel_csv)
+cli.add_command(print_channel_options)
 
 if __name__ == '__main__':
     cli()
