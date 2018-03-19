@@ -5,6 +5,7 @@ import csv
 import click
 from os import getenv, putenv
 import getpass
+import pickle
 
 MESHIFY_BASE_URL = "https://henrypump.meshify.com/api/v3/"
 MESHIFY_USERNAME = getenv("MESHIFY_USERNAME")
@@ -135,6 +136,38 @@ def encode_channel_parameters(channel):
     return channel
 
 
+def make_modbusmap_channel(i, chan, device_type_name):
+    """Make a channel object for a row in the CSV."""
+    json_obj = {
+        "ah": "",
+        "bytary": None,
+        "al": "",
+        "vn": chan['subTitle'],  # Name
+        "ct": "number",  # ChangeType
+        "le": "16",   # Length(16 or 32)
+        "grp": str(chan['guaranteedReportPeriod']),  # GuaranteedReportPeriod
+        "la": None,
+        "chn": chan['name'],  # ChannelName
+        "un": "1",  # DeviceNumber
+        "dn": device_type_name,  # deviceName
+        "vm": None,
+        "lrt": "0",
+        "da": "300",  # DeviceAddress
+        "a": chan['helpExplanation'],  # TagName
+        "c": str(chan['change']),  # Change
+        "misc_u": str(chan['units']),  # Units
+        "f": "1",  # FunctionCode
+        "mrt": str(chan['minReportTime']),  # MinimumReportTime
+        "m": "none",  # multiplier
+        "m1ch": "2-{}".format(i),
+        "mv": "0",  # MultiplierValue
+        "s": "On",
+        "r": "{}-{}".format(chan['min'], chan['max']),  # range
+        "t": "int"  # type
+    }
+    return json_obj
+
+
 @click.group()
 def cli():
     """Command Line Interface."""
@@ -230,9 +263,48 @@ def print_channel_options():
         click.echo(d)
 
 
+@click.command()
+@click.argument("device_type_name")
+@click.argument("csv_file")
+def create_modbusMap(device_type_name, csv_file):
+    """Create modbusMap.p from channel csv file."""
+    modbusMap = {
+        "1": {
+            "c": "ETHERNET/IP",
+            "b": "192.168.1.10",
+            "addresses": {
+                "300": {}
+            },
+            "f": "Off",
+            "p": "",
+            "s": "1"
+        },
+        "2": {
+            "c": "M1-485",
+            "b": "9600",
+            "addresses": {},
+            "f": "Off",
+            "p": "None",
+            "s": "1"
+        }
+    }
+    ind = 1
+    with open(csv_file, 'r') as inp_file:
+        reader = csv.DictReader(inp_file)
+        for row in reader:
+            modbusMap["1"]["addresses"]["300"]["2-{}".format(ind)] = make_modbusmap_channel(ind, row, device_type_name)
+            ind += 1
+    with open("modbusMap.p", 'wb') as mod_map_file:
+        pickle.dump(modbusMap, mod_map_file, protocol=0)
+
+    with open("modbusMap.json", 'w') as json_file:
+        json.dump(modbusMap, json_file, indent=4)
+
+
 cli.add_command(get_channel_csv)
 cli.add_command(post_channel_csv)
 cli.add_command(print_channel_options)
+cli.add_command(create_modbusMap)
 
 if __name__ == '__main__':
     cli()
