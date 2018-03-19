@@ -3,7 +3,7 @@ import requests
 import json
 import csv
 import click
-from os import getenv
+from os import getenv, putenv
 import getpass
 
 MESHIFY_BASE_URL = "https://henrypump.meshify.com/api/v3/"
@@ -30,7 +30,7 @@ def dict_filter(it, *keys):
 
 if not MESHIFY_USERNAME or not MESHIFY_PASSWORD:
     print("Simplify the usage by setting the meshify username and password as environment variables MESHIFY_USERNAME and MESHIFY_PASSWORD")
-    MESHIFY_USERNAME = input("Meshify Username: ")
+    MESHIFY_USERNAME = raw_input("Meshify Username: ")
     MESHIFY_PASSWORD = getpass.getpass("Meshify Password: ")
 
 MESHIFY_AUTH = requests.auth.HTTPBasicAuth(MESHIFY_USERNAME, MESHIFY_PASSWORD)
