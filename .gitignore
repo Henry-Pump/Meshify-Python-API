@@ -5,3 +5,4 @@ __pycache__/*
 modbusMap.json
 modbusMap.p
 dist/*
+build/*

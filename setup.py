@@ -10,7 +10,7 @@ except (IOError, ImportError):
 
 setup(
     name="meshify",
-    version='0.1.1',
+    version='0.1.2',
     description='Package to interact with the Meshify API',
     long_description=description,
     long_description_content_type='text/x-rst',
@@ -18,6 +18,7 @@ setup(
     license="Apache 2.0",
     author='Patrick McDonagh',
     author_email='patrickjmcd@gmail.com',
+    url='https://patrickjmcd.github.io/Meshify-Python-API/',
     install_requires=[
         'Click',
         'requests'
