@@ -4,3 +4,4 @@ __pycache__/*
 *.csv
 modbusMap.json
 modbusMap.p
+dist/*

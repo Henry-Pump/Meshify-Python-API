@@ -3,12 +3,13 @@ import requests
 import json
 import csv
 import click
-from os import getenv, putenv
+from os import getenv
 import getpass
 import pickle
 from pathlib import Path
 
-MESHIFY_BASE_URL = "https://henrypump.meshify.com/api/v3/"
+
+MESHIFY_BASE_URL = getenv("MESHIFY_BASE_URL")
 MESHIFY_USERNAME = getenv("MESHIFY_USERNAME")
 MESHIFY_PASSWORD = getenv("MESHIFY_PASSWORD")
 MESHIFY_AUTH = None
@@ -31,17 +32,19 @@ def dict_filter(it, *keys):
         yield dict((k, d[k]) for k in keys)
 
 
-def check_auth():
-    """Check the global auth parameters."""
-    global MESHIFY_USERNAME, MESHIFY_PASSWORD, MESHIFY_AUTH
+def check_setup():
+    """Check the global parameters."""
+    global MESHIFY_USERNAME, MESHIFY_PASSWORD, MESHIFY_AUTH, MESHIFY_BASE_URL
     if not MESHIFY_USERNAME or not MESHIFY_PASSWORD:
         print("Simplify the usage by setting the meshify username and password as environment variables MESHIFY_USERNAME and MESHIFY_PASSWORD")
         MESHIFY_USERNAME = input("Meshify Username: ")
         MESHIFY_PASSWORD = getpass.getpass("Meshify Password: ")
-        putenv("MESHIFY_USERNAME", MESHIFY_USERNAME)
-        putenv("MESHIFY_PASSWORD", MESHIFY_PASSWORD)
 
     MESHIFY_AUTH = requests.auth.HTTPBasicAuth(MESHIFY_USERNAME, MESHIFY_PASSWORD)
+
+    if not MESHIFY_BASE_URL:
+        print("Simplify the usage by setting the environment variable MESHIFY_BASE_URL")
+        MESHIFY_BASE_URL = input("Meshify Base URL: ")
 
 
 def find_by_name(name, list_of_stuff):
@@ -54,7 +57,7 @@ def find_by_name(name, list_of_stuff):
 
 def query_meshify_api(endpoint):
     """Make a query to the meshify API."""
-    check_auth()
+    check_setup()
     if endpoint[0] == "/":
         endpoint = endpoint[1:]
     q_url = MESHIFY_BASE_URL + endpoint
@@ -64,7 +67,7 @@ def query_meshify_api(endpoint):
 
 def post_meshify_api(endpoint, data):
     """Post data to the meshify API."""
-    check_auth()
+    check_setup()
     q_url = MESHIFY_BASE_URL + endpoint
     q_req = requests.post(q_url, data=json.dumps(data), auth=MESHIFY_AUTH)
     if q_req.status_code != 200:
