@@ -6,6 +6,7 @@ import click
 from os import getenv, putenv
 import getpass
 import pickle
+from pathlib import Path
 
 MESHIFY_BASE_URL = "https://henrypump.meshify.com/api/v3/"
 MESHIFY_USERNAME = getenv("MESHIFY_USERNAME")
@@ -168,6 +169,22 @@ def make_modbusmap_channel(i, chan, device_type_name):
     return json_obj
 
 
+def combine_modbusmap_and_channel(channel_obj, modbus_map):
+    """Add the parameters from the modbus map to the channel object."""
+    channel_part = modbus_map["1"]["addresses"]["300"]
+    for c in channel_part:
+        if channel_part[c]["chn"] == channel_obj['name']:
+            min_max_range = channel_part[c]["r"].split("-")
+            channel_obj['units'] = channel_part[c]["misc_u"]
+            channel_obj['min'] = int(min_max_range[0])
+            channel_obj['max'] = int(min_max_range[1])
+            channel_obj['change'] = float(channel_part[c]["c"])
+            channel_obj['guaranteedReportPeriod'] = int(channel_part[c]["grp"])
+            channel_obj['minReportTime'] = int(channel_part[c]["mrt"])
+            return channel_obj
+    return False
+
+
 @click.group()
 def cli():
     """Command Line Interface."""
@@ -177,7 +194,8 @@ def cli():
 @click.command()
 @click.argument("device_type_name")
 @click.option("-o", '--output-file', default=None, help="Where to put the CSV of channels.")
-def get_channel_csv(device_type_name, output_file):
+@click.option("-m", '--modbusmap-file', default="modbusMap.p", help="The location of the modbusMap.p file")
+def get_channel_csv(device_type_name, output_file, modbusmap_file):
     """Query the meshify API and create a CSV of the current channels."""
     channel_fieldnames = [
         'id',
@@ -191,11 +209,22 @@ def get_channel_csv(device_type_name, output_file):
         'dataType',
         'defaultValue',
         'regex',
-        'regexErrMsg'
+        'regexErrMsg',
+        'units',
+        'min',
+        'max',
+        'change',
+        'guaranteedReportPeriod',
+        'minReportTime'
     ]
     devicetypes = query_meshify_api('devicetypes')
     this_devicetype = find_by_name(device_type_name, devicetypes)
     channels = query_meshify_api('devicetypes/{}/channels'.format(this_devicetype['id']))
+    modbusMap = None
+
+    if Path(modbusmap_file):
+        with open(modbusmap_file, 'rb') as open_mbs_file:
+            modbusMap = pickle.load(open_mbs_file)
 
     if not output_file:
         output_file = 'channels_{}.csv'.format(device_type_name)
@@ -205,6 +234,17 @@ def get_channel_csv(device_type_name, output_file):
 
         writer.writeheader()
         for ch in channels:
+            if not modbusMap:
+                ch['units'] = None
+                ch['min'] = None
+                ch['max'] = None
+                ch['change'] = None
+                ch['guaranteedReportPeriod'] = None
+                ch['minReportTime'] = None
+            else:
+                combined = combine_modbusmap_and_channel(ch, modbusMap)
+                if combined:
+                    ch = combined
             writer.writerow(decode_channel_parameters(ch))
 
     click.echo("Wrote channels to {}".format(output_file))
