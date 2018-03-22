@@ -10,7 +10,7 @@ except (IOError, ImportError):
 
 setup(
     name="meshify",
-    version='0.1.2',
+    version='0.1.3',
     description='Package to interact with the Meshify API',
     long_description=description,
     long_description_content_type='text/x-rst',

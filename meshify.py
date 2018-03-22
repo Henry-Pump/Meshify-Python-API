@@ -177,10 +177,15 @@ def combine_modbusmap_and_channel(channel_obj, modbus_map):
     channel_part = modbus_map["1"]["addresses"]["300"]
     for c in channel_part:
         if channel_part[c]["chn"] == channel_obj['name']:
-            min_max_range = channel_part[c]["r"].split("-")
             channel_obj['units'] = channel_part[c]["misc_u"]
-            channel_obj['min'] = int(min_max_range[0])
-            channel_obj['max'] = int(min_max_range[1])
+            try:
+                min_max_range = channel_part[c]["r"].split("-")
+                channel_obj['min'] = int(min_max_range[0])
+                channel_obj['max'] = int(min_max_range[1])
+            except Exception:
+                channel_obj['min'] = None
+                channel_obj['max'] = None
+
             channel_obj['change'] = float(channel_part[c]["c"])
             channel_obj['guaranteedReportPeriod'] = int(channel_part[c]["grp"])
             channel_obj['minReportTime'] = int(channel_part[c]["mrt"])
@@ -232,7 +237,7 @@ def get_channel_csv(device_type_name, output_file, modbusmap_file):
     if not output_file:
         output_file = 'channels_{}.csv'.format(device_type_name)
 
-    with open(output_file, 'w', newline='') as csvfile:
+    with open(output_file, 'w') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=channel_fieldnames)
 
         writer.writeheader()
