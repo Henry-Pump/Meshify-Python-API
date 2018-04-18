@@ -1,9 +1,9 @@
 """Query Meshify for data."""
-import requests
 import json
 import csv
-import click
 from os import getenv
+import requests
+import click
 import getpass
 import pickle
 from pathlib import Path
@@ -228,11 +228,11 @@ def get_channel_csv(device_type_name, output_file, modbusmap_file):
     devicetypes = query_meshify_api('devicetypes')
     this_devicetype = find_by_name(device_type_name, devicetypes)
     channels = query_meshify_api('devicetypes/{}/channels'.format(this_devicetype['id']))
-    modbusMap = None
+    modbus_map = None
 
-    if Path(modbusmap_file):
+    if Path(modbusmap_file).exists():
         with open(modbusmap_file, 'rb') as open_mbs_file:
-            modbusMap = pickle.load(open_mbs_file)
+            modbus_map = pickle.load(open_mbs_file)
 
     if not output_file:
         output_file = 'channels_{}.csv'.format(device_type_name)
@@ -242,7 +242,7 @@ def get_channel_csv(device_type_name, output_file, modbusmap_file):
 
         writer.writeheader()
         for ch in channels:
-            if not modbusMap:
+            if not modbus_map:
                 ch['units'] = None
                 ch['min'] = None
                 ch['max'] = None
@@ -250,7 +250,7 @@ def get_channel_csv(device_type_name, output_file, modbusmap_file):
                 ch['guaranteedReportPeriod'] = None
                 ch['minReportTime'] = None
             else:
-                combined = combine_modbusmap_and_channel(ch, modbusMap)
+                combined = combine_modbusmap_and_channel(ch, modbus_map)
                 if combined:
                     ch = combined
             writer.writerow(decode_channel_parameters(ch))
@@ -293,12 +293,21 @@ def print_channel_options():
     """Print channel options for use with the csv files."""
     channel_types = ['device', 'static', 'user input', 'system']
     io_options = ['readonly', 'readwrite']
-    datatype_options = ["float", 'string', 'integer', 'boolean', 'datetime', 'timespan', 'file', 'latlng']
+    datatype_options = [
+        "float", 
+        'string', 
+        'integer', 
+        'boolean', 
+        'datetime', 
+        'timespan', 
+        'file', 
+        'latlng'
+    ]
 
     click.echo("\n\nchannelType options")
     click.echo("===================")
-    for c in channel_types:
-        click.echo(c)
+    for chan in channel_types:
+        click.echo(chan)
 
     click.echo("\n\nio options")
     click.echo("==========")
@@ -349,10 +358,28 @@ def create_modbusMap(device_type_name, csv_file):
         json.dump(modbusMap, json_file, indent=4)
 
 
+@click.command()
+@click.option("-i", "--input-file", default="modbusMap.p", help="The modbus map pickle file to convert.")
+@click.option("-o", "--output", default="modbusMap.json", help="The modbus map json file output filename.")
+def pickle_to_json(input_file, output):
+    """Convert a pickle file to a json file."""
+    if not Path(input_file).exists():
+        click.echo("Pickle file {} does not exist".format(input_file))
+        return
+    
+    with open(input_file, 'rb') as picklefile:
+        input_contents = pickle.load(picklefile)
+        
+        with open(output, 'w') as outfile:
+            json.dump(input_contents, outfile, indent=4)
+            click.echo("Wrote from {} to {}.".format(input_file, output))
+
+
 cli.add_command(get_channel_csv)
 cli.add_command(post_channel_csv)
 cli.add_command(print_channel_options)
 cli.add_command(create_modbusMap)
+cli.add_command(pickle_to_json)
 
 if __name__ == '__main__':
     cli()
