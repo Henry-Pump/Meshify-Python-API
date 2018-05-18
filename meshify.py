@@ -2,11 +2,11 @@
 import json
 import csv
 from os import getenv
-import requests
-import click
 import getpass
 import pickle
 from pathlib import Path
+import requests
+import click
 
 
 MESHIFY_BASE_URL = getenv("MESHIFY_BASE_URL")
@@ -294,13 +294,13 @@ def print_channel_options():
     channel_types = ['device', 'static', 'user input', 'system']
     io_options = ['readonly', 'readwrite']
     datatype_options = [
-        "float", 
-        'string', 
-        'integer', 
-        'boolean', 
-        'datetime', 
-        'timespan', 
-        'file', 
+        "float",
+        'string',
+        'integer',
+        'boolean',
+        'datetime',
+        'timespan',
+        'file',
         'latlng'
     ]
 
@@ -366,12 +366,28 @@ def pickle_to_json(input_file, output):
     if not Path(input_file).exists():
         click.echo("Pickle file {} does not exist".format(input_file))
         return
-    
+
     with open(input_file, 'rb') as picklefile:
         input_contents = pickle.load(picklefile)
-        
+
         with open(output, 'w') as outfile:
             json.dump(input_contents, outfile, indent=4)
+            click.echo("Wrote from {} to {}.".format(input_file, output))
+
+@click.command()
+@click.option("-i", "--input-file", default="modbusMap.json", help="The modbus map json file to convert.")
+@click.option("-o", "--output", default="modbusMap.p", help="The modbus map pickle file output filename.")
+def json_to_pickle(input_file, output):
+    """Convert a pickle file to a json file."""
+    if not Path(input_file).exists():
+        click.echo("JSON file {} does not exist".format(input_file))
+        return
+
+    with open(input_file, 'rb') as json_file:
+        input_contents = json.load(json_file)
+
+        with open(output, 'wb') as outfile:
+            pickle.dump(input_contents, outfile, protocol=0)
             click.echo("Wrote from {} to {}.".format(input_file, output))
 
 
@@ -380,6 +396,7 @@ cli.add_command(post_channel_csv)
 cli.add_command(print_channel_options)
 cli.add_command(create_modbusMap)
 cli.add_command(pickle_to_json)
+cli.add_command(json_to_pickle)
 
 if __name__ == '__main__':
     cli()
