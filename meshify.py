@@ -130,14 +130,16 @@ def encode_channel_parameters(channel):
         'file': 7,
         'latlng': 8
     }
-
-    channel['deviceTypeId'] = int(channel['deviceTypeId'])
-    channel['fromMe'] = channel['fromMe'].lower() == 'true'
-    channel['channelType'] = channel_types[channel['channelType'].lower()]
-    channel['io'] = io_options[channel['io'].lower()]
-    channel['dataType'] = datatype_options[channel['dataType'].lower()]
-    # channel['id'] = 1
-    return channel
+    try:
+        channel['deviceTypeId'] = int(channel['deviceTypeId'])
+        channel['fromMe'] = channel['fromMe'].lower() == 'true'
+        channel['channelType'] = channel_types[channel['channelType'].lower()]
+        channel['io'] = io_options[channel['io'].lower()]
+        channel['dataType'] = datatype_options[channel['dataType'].lower()]
+        # channel['id'] = 1
+        return channel
+    except KeyError as e:
+        click.echo("Unable to convert channel {} due to bad key: {}".format(channel['name'], e))
 
 
 def make_modbusmap_channel(i, chan, device_type_name):
